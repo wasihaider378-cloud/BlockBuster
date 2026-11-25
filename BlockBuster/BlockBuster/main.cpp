@@ -119,6 +119,62 @@ int main()
        {
            ballX = paddleX + 44;
        }
+       if (ballLaunched == true)
+       {
+           ballX = ballX + dx;
+
+           if (ballX < 0 || ballX + 12 > 600)
+           {
+               ballX = ballX - dx;
+               dx = -dx;
+           }
+           ballY = ballY + dy;
+           if (ballY < 50)
+           {
+               ballY = ballY - dy;
+               dy = -dy;
+           }
+           if (dy > 0 &&
+               ballX < paddleX + 100 &&
+               paddleX < ballX + 12 &&
+               ballY + 12 > 650 &&
+               ballY < 664)
+           {
+               ballY = 638;
+               dy = -5;
+
+               float sectionValue = (ballX + 6 - paddleX) / 25;
+
+               if (sectionValue < 0)
+               {
+                   sectionValue = 0;
+               }
+
+               if (sectionValue > 3)
+               {
+                   sectionValue = 3;
+               }
+
+               int section = static_cast<int>(sectionValue);
+
+               if (section == 0)
+               {
+                   dx = -6;
+               }
+               else if (section == 1)
+               {
+                   dx = -3;
+               }
+               else if (section == 2)
+               {
+                   dx = 3;
+               }
+               else if (section == 3)
+               {
+                   dx = 6;
+               }
+           }
+       }
         paddle.setPosition({ paddleX, 650.f });
         ball.setPosition({ ballX, ballY });
         window.draw(paddle);
