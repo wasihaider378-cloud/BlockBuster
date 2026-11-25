@@ -3,13 +3,18 @@
 #include <optional>
 #include <fstream>
 #include <iostream>
+#include <cstdlib>
+#include <ctime>
 using namespace std;
 int main()
-{
+{  
+    srand(time(0));
     sf::RenderWindow window(sf::VideoMode({ 600u, 700u }), "Block Buster");
     window.setFramerateLimit(60);
     sf::RectangleShape paddle;
+    sf::CircleShape ball(6.f);
     ifstream fin("level.txt");
+  
     if (!fin)
     {
         cerr << "Error: Could not open level.txt!" << endl;
@@ -49,6 +54,11 @@ int main()
     };
     sf::RectangleShape brick({ BRICK_W - 2, BRICK_H - 2 });
     float paddleX = 250.f;
+    float ballX = paddleX + 44;
+    float ballY = 638;
+    bool ballLaunched = false;
+    float dx = 0.f;
+    float dy = 0.f;
     paddle.setSize({ 100.f, 14.f });
     paddle.setPosition({ paddleX, 650.f });
     paddle.setFillColor(sf::Color::Green);
@@ -59,6 +69,22 @@ int main()
             if (event->is<sf::Event::Closed>())
             {
                 window.close();
+            }
+            else if (const auto* key = event->getIf<sf::Event::KeyPressed>())
+            {
+                if (key->code == sf::Keyboard::Key::Space && ballLaunched == false)
+                {
+                    ballLaunched = true;
+                    dy = -5;
+                    if (rand() % 2 == 0)
+                    {
+                        dx = -3;
+                    }
+                    else
+                    {
+                        dx = 3;
+                    }
+                }
             }
         }
         window.clear(sf::Color::Black);
@@ -73,22 +99,30 @@ int main()
                     ({
                                c * BRICK_W + 1,
                                BRICKS_Y + r * BRICK_H + 1
-                    });
+                        });
                     window.draw(brick);
                 }
             }
         }
 
-     if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Right) && paddleX<=492)
-     {
-        paddleX = paddleX + 8;
-     }
-     if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Left) && paddleX >= 8)
-     {
+        if ((sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Right) ||
+            sf::Keyboard::isKeyPressed(sf::Keyboard::Key::D)) && paddleX <= 492)
+        {
+            paddleX = paddleX + 8;
+        }
+       if ((sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Left) ||
+            sf::Keyboard::isKeyPressed(sf::Keyboard::Key::A)) && paddleX >= 8)
+       {
          paddleX = paddleX - 8;
-     }
-         paddle.setPosition({ paddleX, 650.f });
+       }
+       if (ballLaunched == false)
+       {
+           ballX = paddleX + 44;
+       }
+        paddle.setPosition({ paddleX, 650.f });
+        ball.setPosition({ ballX, ballY });
         window.draw(paddle);
+        window.draw(ball);
         window.display();
     }
 
