@@ -13,6 +13,13 @@ int main()
     window.setFramerateLimit(60);
     sf::RectangleShape paddle;
     sf::CircleShape ball(6.f);
+    sf::Font font;
+
+    if (!font.openFromFile("arial.ttf"))
+    {
+        cerr << "Error: Could not load font!" << endl;
+        return 1;
+    }
     ifstream fin("level.txt");
   
     if (!fin)
@@ -59,6 +66,11 @@ int main()
     bool ballLaunched = false;
     float dx = 0.f;
     float dy = 0.f;
+    int score = 0;
+    sf::Text scoreText(font);
+    scoreText.setCharacterSize(24);
+    scoreText.setFillColor(sf::Color::White);
+    scoreText.setPosition({ 20.f, 10.f });
     paddle.setSize({ 100.f, 14.f });
     paddle.setPosition({ paddleX, 650.f });
     paddle.setFillColor(sf::Color::Green);
@@ -120,7 +132,9 @@ int main()
            ballX = paddleX + 44;
        }
        if (ballLaunched == true)
-       {
+       {   
+           bool alreadyHit[8][10] = {};
+
            ballX = ballX + dx;
 
            if (ballX < 0 || ballX + 12 > 600)
@@ -128,7 +142,100 @@ int main()
                ballX = ballX - dx;
                dx = -dx;
            }
+           float cornerX[4] = {
+           ballX, ballX + 12, ballX, ballX + 12
+           };
+
+           float cornerY[4] = {
+               ballY, ballY, ballY + 12, ballY + 12
+           };
+           bool brickTouched = false;
+
+           for (int i = 0; i < 4; i++)
+           {
+               if (cornerY[i] >= 100 &&
+                   cornerY[i] < 300 &&
+                   cornerX[i] >= 0 &&
+                   cornerX[i] < 600)
+               {
+                   int column = cornerX[i] / 60;
+                   int row = (cornerY[i] - 100) / 25;
+                   if (bricks[row][column] > 0)
+                   {   
+                       brickTouched = true;
+
+                       if (alreadyHit[row][column] == false)
+                       {
+                           alreadyHit[row][column] = true;
+
+                           bricks[row][column]--;
+
+                           if (bricks[row][column] == 0)
+                           {
+                               score += 50;
+                           }
+                           else
+                           {
+                               score += 10;
+                           }
+                       }
+                   }
+               }
+           } 
+           if (brickTouched == true)
+           {
+               ballX = ballX - dx;
+               dx = -dx;
+           }
+           
            ballY = ballY + dy;
+           cornerX[0] = ballX;
+           cornerX[1] = ballX + 12;
+           cornerX[2] = ballX;
+           cornerX[3] = ballX + 12;
+
+           cornerY[0] = ballY;
+           cornerY[1] = ballY;
+           cornerY[2] = ballY + 12;
+           cornerY[3] = ballY + 12;
+
+           brickTouched = false;
+
+           for (int i = 0; i < 4; i++)
+           {
+               if (cornerY[i] >= 100 &&
+                   cornerY[i] < 300 &&
+                   cornerX[i] >= 0 &&
+                   cornerX[i] < 600)
+               {
+                   int column = cornerX[i] / 60;
+                   int row = (cornerY[i] - 100) / 25;
+                   if (bricks[row][column] > 0)
+                   {
+                       brickTouched = true;
+                       if (alreadyHit[row][column] == false)
+                       {
+                           alreadyHit[row][column] = true;
+
+                           bricks[row][column]--;
+
+                           if (bricks[row][column] == 0)
+                           {
+                               score += 50;
+                           }
+                           else
+                           {
+                               score += 10;
+                           }
+                       }
+                   }
+               }
+           }
+           if (brickTouched == true)
+           {
+               ballY = ballY - dy;
+               dy = -dy;
+           }
            if (ballY < 50)
            {
                ballY = ballY - dy;
@@ -178,6 +285,8 @@ int main()
         paddle.setPosition({ paddleX, 650.f });
         ball.setPosition({ ballX, ballY });
         window.draw(paddle);
+        scoreText.setString("Score: " + to_string(score));
+        window.draw(scoreText);
         window.draw(ball);
         window.display();
     }
