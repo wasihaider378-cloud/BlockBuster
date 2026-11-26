@@ -67,10 +67,24 @@ int main()
     float dx = 0.f;
     float dy = 0.f;
     int score = 0;
+    int lives = 3;
+    bool gameEnded = false;
     sf::Text scoreText(font);
     scoreText.setCharacterSize(24);
     scoreText.setFillColor(sf::Color::White);
     scoreText.setPosition({ 20.f, 10.f });
+    sf::Text livesText(font);
+    livesText.setCharacterSize(24);
+    livesText.setFillColor(sf::Color::White);
+    livesText.setPosition({ 200.f, 10.f });
+    sf::Text winText(font);
+    winText.setCharacterSize(40);
+    winText.setFillColor(sf::Color::Yellow);
+    winText.setPosition({ 200.f, 300.f });
+    sf::Text gameOverText(font);
+    gameOverText.setCharacterSize(40);
+    gameOverText.setFillColor(sf::Color::Red);
+    gameOverText.setPosition({ 180.f, 300.f });
     paddle.setSize({ 100.f, 14.f });
     paddle.setPosition({ paddleX, 650.f });
     paddle.setFillColor(sf::Color::Green);
@@ -84,7 +98,8 @@ int main()
             }
             else if (const auto* key = event->getIf<sf::Event::KeyPressed>())
             {
-                if (key->code == sf::Keyboard::Key::Space && ballLaunched == false)
+                if (key->code == sf::Keyboard::Key::Space &&
+                    ballLaunched == false && gameEnded == false)
                 {
                     ballLaunched = true;
                     dy = -5;
@@ -116,22 +131,27 @@ int main()
                 }
             }
         }
-
+       if (gameEnded == false)
+       {
+            
+        
         if ((sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Right) ||
             sf::Keyboard::isKeyPressed(sf::Keyboard::Key::D)) && paddleX <= 492)
         {
             paddleX = paddleX + 8;
         }
-       if ((sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Left) ||
+        if ((sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Left) ||
             sf::Keyboard::isKeyPressed(sf::Keyboard::Key::A)) && paddleX >= 8)
-       {
-         paddleX = paddleX - 8;
+        {
+            paddleX = paddleX - 8;
+         }
        }
+    
        if (ballLaunched == false)
        {
            ballX = paddleX + 44;
        }
-       if (ballLaunched == true)
+       if (ballLaunched == true && gameEnded == false)
        {   
            bool alreadyHit[8][10] = {};
 
@@ -282,11 +302,47 @@ int main()
                }
            }
        }
+       if (ballY > 700 && lives > 0)
+       {
+           lives--;
+
+           ballLaunched = false;
+           ballX = paddleX + 44;
+           ballY = 638;
+           dx = 0;
+           dy = 0;
+       }
+       bool allBricksDestroyed = true;
+
+       for (int r = 0; r < rows; r++)
+       {
+           for (int c = 0; c < cols; c++)
+           {
+               if (bricks[r][c] > 0)
+               {
+                   allBricksDestroyed = false;
+               }
+           }
+       }
+       if (allBricksDestroyed == true)
+       {
+           winText.setString("YOU WIN");
+           gameEnded = true;
+       }
+       if (lives == 0)
+       {
+           gameOverText.setString("GAME OVER");
+           gameEnded = true;
+       }
         paddle.setPosition({ paddleX, 650.f });
         ball.setPosition({ ballX, ballY });
         window.draw(paddle);
         scoreText.setString("Score: " + to_string(score));
         window.draw(scoreText);
+        livesText.setString("Lives: " + to_string(lives));
+        window.draw(livesText);
+        window.draw(winText);
+        window.draw(gameOverText);
         window.draw(ball);
         window.display();
     }
