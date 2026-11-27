@@ -45,9 +45,46 @@ const int BRICK_BREAK_POINTS = 50;
 // Power-up settings
 const float POWERUP_FALL_SPEED = 3.f;
 const int WIDE_PADDLE_DURATION = 600;
+const float POWERUP_SIZE = 24.f;
+const int POWERUP_CHANCE = 5;
+const float PADDLE_HEIGHT = 14.f;
 
 int gameState = MENU;
 int menuSelection = 0;
+
+// Power-up variables
+float currentPaddleWidth = PADDLE_WIDTH;
+int widePaddleTimer = 0;
+
+bool powerUpActive = false;
+char powerUpType = ' ';
+float powerUpX = 0.f;
+float powerUpY = 0.f;
+
+// Randomly spawns a power-up at the position of a broken brick if none is currently active.
+void spawnPowerUp(int row, int column)
+{
+    if (powerUpActive == false &&
+        rand() % POWERUP_CHANCE == 0)
+    {
+        powerUpActive = true;
+
+        if (rand() % 2 == 0)
+        {
+            powerUpType = 'W';
+        }
+        else
+        {
+            powerUpType = '+';
+        }
+
+        powerUpX = column * BRICK_WIDTH +
+            (BRICK_WIDTH - POWERUP_SIZE) / 2;
+
+        powerUpY = BRICKS_Y + row * BRICK_HEIGHT;
+    }
+}
+
 // Reads a complete level file before replacing the current brick layout.
 bool loadLevel(int bricks[BRICK_ROWS][BRICK_COLS], int rows, int cols)
 {
@@ -98,7 +135,7 @@ bool loadSavedGame(
 
     if (!saveFile ||
         !(saveFile >> savedScore >> savedLives) ||
-        savedScore < 0 || savedLives < 1 || savedLives > INITIAL_LIVES)
+        savedScore < 0 || savedLives < 1)
     {
         return false;
     }
@@ -157,12 +194,12 @@ bool saveGame(
     return static_cast<bool>(saveFile);
 }
 
-// Moves the paddle without allowing it to leave the window.
+// Moves the paddle left or right while keeping it inside the game window.
 void movePaddle(float& paddleX)
 {
     if ((sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Right) ||
         sf::Keyboard::isKeyPressed(sf::Keyboard::Key::D)) &&
-        paddleX <= WINDOW_WIDTH - PADDLE_WIDTH - PADDLE_MARGIN)
+        paddleX <= WINDOW_WIDTH - currentPaddleWidth - PADDLE_MARGIN)
     {
         paddleX += PADDLE_SPEED;
     }
@@ -312,7 +349,7 @@ void input(
                             lives = INITIAL_LIVES;
 
                             paddleX = PADDLE_START_X;
-                            ballX = paddleX + (PADDLE_WIDTH - BALL_SIZE) / 2;
+                           
                             ballY = BALL_START_Y;
 
                             dx = 0;
@@ -320,6 +357,16 @@ void input(
 
                             ballLaunched = false;
                             gameEnded = false;
+
+                            // Reset power-up settings for a fresh game
+                            currentPaddleWidth = PADDLE_WIDTH;
+                            widePaddleTimer = 0;
+                            powerUpActive = false;
+                            powerUpType = ' ';
+                            powerUpX = 0.f;
+                            powerUpY = 0.f;
+
+                            ballX = paddleX + (currentPaddleWidth - BALL_SIZE) / 2;
 
                             winText.setString("");
                             gameOverText.setString("");
@@ -341,7 +388,7 @@ void input(
                         if (saveLoaded)
                         {
                             paddleX = PADDLE_START_X;
-                            ballX = paddleX + (PADDLE_WIDTH - BALL_SIZE) / 2;
+                           
                             ballY = BALL_START_Y;
 
                             dx = 0.f;
@@ -349,6 +396,16 @@ void input(
 
                             ballLaunched = false;
                             gameEnded = false;
+
+                            // Reset power-up settings when continuing
+                            currentPaddleWidth = PADDLE_WIDTH;
+                            widePaddleTimer = 0;
+                            powerUpActive = false;
+                            powerUpType = ' ';
+                            powerUpX = 0.f;
+                            powerUpY = 0.f;
+
+                            ballX = paddleX + (currentPaddleWidth - BALL_SIZE) / 2;
 
                             winText.setString("");
                             gameOverText.setString("");
@@ -432,7 +489,50 @@ void update(
         break;
 
     case PLAYING:
-    {
+    {  // Reduce the wide paddle timer
+        if (widePaddleTimer > 0)
+        {
+            widePaddleTimer--;
+
+            if (widePaddleTimer == 0)
+            {
+                currentPaddleWidth = PADDLE_WIDTH;
+            }
+        }
+
+        // Move and catch power-ups
+        if (powerUpActive == true)
+        {
+            powerUpY += POWERUP_FALL_SPEED;
+
+            if (powerUpY + POWERUP_SIZE >= PADDLE_Y &&
+                powerUpY <= PADDLE_Y + PADDLE_HEIGHT &&
+                powerUpX + POWERUP_SIZE >= paddleX &&
+                powerUpX <= paddleX + currentPaddleWidth)
+            {
+                if (powerUpType == 'W')
+                {
+                    currentPaddleWidth = WIDE_PADDLE_WIDTH;
+                    widePaddleTimer = WIDE_PADDLE_DURATION;
+
+                    if (paddleX > WINDOW_WIDTH - currentPaddleWidth)
+                    {
+                        paddleX = WINDOW_WIDTH - currentPaddleWidth;
+                    }
+                }
+                else if (powerUpType == '+')
+                {
+                    lives++;
+                }
+
+                powerUpActive = false;
+            }
+            else if (powerUpY > WINDOW_HEIGHT)
+            {
+                powerUpActive = false;
+            }
+        }
+
         if (gameEnded == false)
         {
             movePaddle(paddleX);
@@ -440,7 +540,7 @@ void update(
 
         if (ballLaunched == false)
         {
-            ballX = paddleX + (PADDLE_WIDTH - BALL_SIZE) / 2;
+            ballX = paddleX + (currentPaddleWidth - BALL_SIZE) / 2;
         }
 
         if (ballLaunched == true && gameEnded == false)
@@ -488,6 +588,7 @@ void update(
                             if (bricks[row][column] == 0)
                             {
                                 score += BRICK_BREAK_POINTS;
+                                spawnPowerUp(row, column);
                             }
                             else
                             {
@@ -541,6 +642,7 @@ void update(
                             if (bricks[row][column] == 0)
                             {
                                 score += BRICK_BREAK_POINTS;
+                                spawnPowerUp(row, column);
                             }
                             else
                             {
@@ -564,7 +666,7 @@ void update(
             }
 
             if (dy > 0 &&
-                ballX < paddleX + PADDLE_WIDTH &&
+                ballX < paddleX + currentPaddleWidth &&
                 paddleX < ballX + BALL_SIZE &&
                 ballY + BALL_SIZE > 650 &&
                 ballY < 664)
@@ -573,7 +675,7 @@ void update(
                 dy = BALL_LAUNCH_SPEED_Y;
 
                 float sectionValue =
-                    (ballX + BALL_SIZE / 2 - paddleX) / (PADDLE_WIDTH / 4);
+                    (ballX + BALL_SIZE / 2 - paddleX) / (currentPaddleWidth / 4);
 
                 if (sectionValue < 0)
                 {
@@ -611,7 +713,7 @@ void update(
             lives--;
 
             ballLaunched = false;
-            ballX = paddleX + (PADDLE_WIDTH - BALL_SIZE) / 2;
+            ballX = paddleX + (currentPaddleWidth - BALL_SIZE) / 2;
             ballY = BALL_START_Y;
             dx = 0;
             dy = 0;
@@ -670,6 +772,8 @@ void draw(
     sf::Text& livesText,
     sf::RectangleShape& paddle,
     sf::CircleShape& ball,
+    sf::RectangleShape& powerUpShape,
+    sf::Text& powerUpLabel,
     float paddleX,
     float ballX,
     float ballY,
@@ -708,6 +812,8 @@ void draw(
     case PLAYING:
         drawBricks(window, bricks, rows, cols, colors, brick);
 
+        paddle.setSize({ currentPaddleWidth, PADDLE_HEIGHT });
+
         paddle.setPosition({ paddleX, PADDLE_Y });
         ball.setPosition({ ballX, ballY });
 
@@ -718,6 +824,27 @@ void draw(
 
         livesText.setString("Lives: " + to_string(lives));
         window.draw(livesText);
+
+        // Display the falling power-up
+        if (powerUpActive == true)
+        {
+            powerUpShape.setPosition({ powerUpX, powerUpY });
+
+            if (powerUpType == 'W')
+            {
+                powerUpShape.setFillColor(sf::Color::Green);
+            }
+            else
+            {
+                powerUpShape.setFillColor(sf::Color::Yellow);
+            }
+
+            powerUpLabel.setString(string(1, powerUpType));
+            powerUpLabel.setPosition({ powerUpX + 6.f, powerUpY });
+
+            window.draw(powerUpShape);
+            window.draw(powerUpLabel);
+        }
 
         window.draw(ball);
         break;
@@ -740,7 +867,7 @@ void draw(
 
 int main()
 {
-    srand(time(0));
+    srand(static_cast<unsigned int>(time(0)));
     sf::RenderWindow window(
         sf::VideoMode({ WINDOW_WIDTH, WINDOW_HEIGHT }),
         "Block Buster"
@@ -755,6 +882,10 @@ int main()
         cerr << "Error: Could not load font!" << endl;
         return 1;
     }
+    sf::RectangleShape powerUpShape({ POWERUP_SIZE, POWERUP_SIZE });
+    sf::Text powerUpLabel(font);
+    powerUpLabel.setCharacterSize(18);
+    powerUpLabel.setFillColor(sf::Color::Black);
     int rows = 0;
     int cols = 0;
     int bricks[BRICK_ROWS][BRICK_COLS];
@@ -772,7 +903,7 @@ int main()
     };
     sf::RectangleShape brick({ BRICK_WIDTH - 2, BRICK_HEIGHT - 2 });
     float paddleX = PADDLE_START_X;
-    float ballX = paddleX + (PADDLE_WIDTH - BALL_SIZE) / 2;
+    float ballX = paddleX + (currentPaddleWidth - BALL_SIZE) / 2;
     float ballY = BALL_START_Y;
     bool ballLaunched = false;
     float dx = 0.f;
@@ -853,6 +984,8 @@ int main()
             livesText,
             paddle,
             ball,
+            powerUpShape,
+            powerUpLabel,
             paddleX,
             ballX,
             ballY,
