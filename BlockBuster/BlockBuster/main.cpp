@@ -28,7 +28,8 @@ void input(
     bool& gameEnded,
     int& gameState,
     sf::Text& winText,
-    sf::Text& gameOverText
+    sf::Text& gameOverText,
+    sf::Text& menuMessageText
 )
 {
     while (const std::optional event = window.pollEvent())
@@ -113,6 +114,7 @@ void input(
 
                             winText.setString("");
                             gameOverText.setString("");
+                            menuMessageText.setString("");
 
                             gameState = PLAYING;
                         }
@@ -121,30 +123,131 @@ void input(
                             cerr << "Error: Could not reload level.txt!" << endl;
                         }
                     }
+                    else if (menuSelection == 1)
+                    {
+                        ifstream saveFile("savegame.txt");
+
+                        int savedScore = 0;
+                        int savedLives = 0;
+                        int savedBricks[8][10];
+
+                        bool saveLoaded = false;
+
+                        if (saveFile &&
+                            saveFile >> savedScore >> savedLives &&
+                            savedScore >= 0 &&
+                            savedLives >= 1 && savedLives <= 3)
+                        {
+                            saveLoaded = true;
+
+                            for (int r = 0; r < rows && saveLoaded; r++)
+                            {
+                                for (int c = 0; c < cols; c++)
+                                {
+                                    if (!(saveFile >> savedBricks[r][c]) ||
+                                        savedBricks[r][c] < 0 ||
+                                        savedBricks[r][c] > 3)
+                                    {
+                                        saveLoaded = false;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+
+                        if (saveLoaded)
+                        {
+                            for (int r = 0; r < rows; r++)
+                            {
+                                for (int c = 0; c < cols; c++)
+                                {
+                                    bricks[r][c] = savedBricks[r][c];
+                                }
+                            }
+
+                            score = savedScore;
+                            lives = savedLives;
+
+                            paddleX = 250.f;
+                            ballX = paddleX + 44;
+                            ballY = 638.f;
+
+                            dx = 0.f;
+                            dy = 0.f;
+
+                            ballLaunched = false;
+                            gameEnded = false;
+
+                            winText.setString("");
+                            gameOverText.setString("");
+                            menuMessageText.setString("");
+
+                            gameState = PLAYING;
+                        }
+                        else
+                        {
+                            menuMessageText.setString("No saved game");
+                        }
+                    }
                     else if (menuSelection == 2)
                     {
                         window.close();
                     }
                 }
                 break;
-
              case PLAYING:
-                if (key->code == sf::Keyboard::Key::Space &&
-                    ballLaunched == false)
-                {
-                    ballLaunched = true;
-                    dy = -5;
+                 if (key->code == sf::Keyboard::Key::Escape)
+                 {
+                     ofstream saveFile("savegame.txt");
 
-                    if (rand() % 2 == 0)
-                    {
-                        dx = -3;
-                    }
-                    else
-                    {
-                        dx = 3;
-                    }
-                }
-                break;
+                     if (saveFile)
+                     {
+                         saveFile << score << " " << lives << endl;
+
+                         for (int r = 0; r < rows; r++)
+                         {
+                             for (int c = 0; c < cols; c++)
+                             {
+                                 saveFile << bricks[r][c] << " ";
+                             }
+
+                             saveFile << endl;
+                         }
+
+                         saveFile.close();
+
+                         if (saveFile)
+                         {
+                             gameState = MENU;
+                             menuSelection = 0;
+                         }
+                         else
+                         {
+                             cerr << "Error: Could not save game!" << endl;
+                         }
+                     }
+                     else
+                     {
+                         cerr << "Error: Could not open savegame.txt!" << endl;
+                     }
+                 }
+                 else if (key->code == sf::Keyboard::Key::Space &&
+                     ballLaunched == false)
+                 {
+                     ballLaunched = true;
+                     dy = -5;
+
+                     if (rand() % 2 == 0)
+                     {
+                         dx = -3;
+                     }
+                     else
+                     {
+                         dx = 3;
+                     }
+                 }
+
+                 break;
              case GAME_OVER:
                  if (key->code == sf::Keyboard::Key::Enter)
                  {
@@ -377,12 +480,16 @@ void update(
             winText.setString("YOU WIN");
             gameEnded = true;
             gameState = GAME_OVER;
+            ofstream clearSaveFile("savegame.txt");
+            clearSaveFile.close();
         }
         if (lives == 0)
         {
             gameOverText.setString("GAME OVER");
             gameEnded = true;
             gameState = GAME_OVER;
+            ofstream clearSaveFile("savegame.txt");
+            clearSaveFile.close();
         }
 
         break;
@@ -421,7 +528,8 @@ void draw(
     sf::Text& continueText,
     sf::Text& exitText,
     sf::Text& finalScoreText,
-    sf::Text& pressEnterText
+    sf::Text& pressEnterText,
+    sf::Text& menuMessageText
 )
 {
     window.clear(sf::Color::Black);
@@ -442,6 +550,7 @@ void draw(
         window.draw(newGameText);
         window.draw(continueText);
         window.draw(exitText);
+        window.draw(menuMessageText);
         break;
 
      case PLAYING:
@@ -599,6 +708,11 @@ int main()
     pressEnterText.setFillColor(sf::Color::White);
     pressEnterText.setPosition({ 220.f, 430.f });
 
+    sf::Text menuMessageText(font);
+    menuMessageText.setCharacterSize(22);
+    menuMessageText.setFillColor(sf::Color::Yellow);
+    menuMessageText.setPosition({ 170.f, 510.f });
+
     paddle.setSize({ 100.f, 14.f });
     paddle.setPosition({ paddleX, 650.f });
     paddle.setFillColor(sf::Color::Green);
@@ -620,7 +734,8 @@ int main()
             gameEnded,
             gameState,
             winText,
-            gameOverText
+            gameOverText,
+            menuMessageText
         );
        
         update(
@@ -657,7 +772,8 @@ int main()
             continueText,
             exitText,
             finalScoreText,
-            pressEnterText
+            pressEnterText,
+            menuMessageText
         );
     }
 
